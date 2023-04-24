@@ -1,6 +1,7 @@
 package log
 
 import (
+	rotatelogs "github.com/lestrrat-go/file-rotatelogs"
 	"io"
 	"log"
 	"os"
@@ -130,11 +131,17 @@ func CreateStderrLogWriter() WriterCreator {
 
 // CreateFileLogWriter returns a LogWriterCreator that creates LogWriter for the given file.
 func CreateFileLogWriter(path string) (WriterCreator, error) {
-	file, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0o600)
+	logf, err := rotatelogs.New(
+		path+".%Y-%m-%d",
+		rotatelogs.WithLinkName(path),
+		rotatelogs.WithMaxAge(24*time.Hour*7),
+		rotatelogs.WithRotationTime(time.Hour*24),
+	)
+	// file, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0o600)
 	if err != nil {
 		return nil, err
 	}
-	file.Close()
+	// file.Close()
 	return func() Writer {
 		file, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0o600)
 		if err != nil {
@@ -142,7 +149,7 @@ func CreateFileLogWriter(path string) (WriterCreator, error) {
 		}
 		return &fileLogWriter{
 			file:   file,
-			logger: log.New(file, "", log.Ldate|log.Ltime),
+			logger: log.New(logf, "", log.Ldate|log.Ltime),
 		}
 	}, nil
 }
